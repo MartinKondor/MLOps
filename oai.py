@@ -1,16 +1,34 @@
 """
 Simple OpenAI API wrapper that uses cache for repeated prompts.
+For models, see: https://openai.com/api/pricing/
 """
-import logging
 from typing import List, Dict, Any
+
 from openai import OpenAI as InternalOpenAI
+import logging
+import tiktoken
 
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
+# Ask for the API key if its not defined
+if "OPENAI_API_KEY" not in globals():
+  OPENAI_API_KEY = input("OPENAI_API_KEY:")
+
+
+def count_tokens(
+    text: str,
+    model_name: str = "gpt-3.5-turbo"
+) -> int:
+  token_encoder = tiktoken.encoding_for_model(model_name)
+  return len(token_encoder.encode(text))
+
+
 class OpenAIResponse:
   prompt: str
   message: Any
+  no_input_tokens: int
+  no_output_tokens: int
 
 class OpenAI:
   
@@ -41,14 +59,19 @@ class OpenAI:
 
   def __save_to_cache(self, prompt: str, message: Any) -> None:
     oairesp = OpenAIResponse()
+    
     oairesp.prompt = prompt
+    oairesp.no_input_tokens = count_tokens(prompt)
+    
     oairesp.message = message
+    oairesp.no_output_tokens = count_tokens(message)
+    
     self.__cache.append(oairesp)
 
   def send_prompt(
       self,
       prompt: str,
-      model: str = "gpt-4-turbo",
+      model: str = "gpt-3.5-turbo-0125",
       previous_messages: List[Dict[str, str]] = []
   ) -> str:
     cache_response = self.__search_in_cache(prompt)
